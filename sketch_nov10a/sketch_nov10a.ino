@@ -2,9 +2,9 @@
 #include <MicroGear.h>
 
 // -------- NETPIE credentials --------
-#define APPID   "YourAppID"
-#define KEY     "YourKey"
-#define SECRET  "YourSecret"
+#define APPID   "1d4c1ec7-9efe-4b3e-a9fd-903471a73f39"
+#define KEY     "FYJpS15HcvRvF7KtCwrnqC2t7bLKsj2R"
+#define SECRET  "z7jBNvj4JckL8Vxsu885jGC7EyKwi5xa"
 #define ALIAS   "ESP32_NodeMCU"
 
 // -------- Access Point settings --------
