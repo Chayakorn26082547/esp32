@@ -7,9 +7,9 @@
 #define SECRET  "z7jBNvj4JckL8Vxsu885jGC7EyKwi5xa"
 #define ALIAS   "ESP32_NodeMCU"
 
-// -------- Access Point settings --------
-const char* ap_ssid = "ESP32_AP";
-const char* ap_password = "12345678";
+// -------- Wi-Fi credentials --------
+const char* ssid = "YourWiFiName";         // Replace with your WiFi name
+const char* password = "YourWiFiPassword"; // Replace with your WiFi password
 
 // -------- MicroGear setup --------
 WiFiClient client;
@@ -29,37 +29,41 @@ void onMessage(char *topic, uint8_t* msg, unsigned int msglen) {
   Serial.println();
 }
 
+// -------- WiFi Setup --------
+void setupWiFi() {
+  Serial.println();
+  Serial.print("Connecting to WiFi: ");
+  Serial.println(ssid);
+  WiFi.begin(ssid, password);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println("\nWiFi connected!");
+  Serial.print("IP Address: ");
+  Serial.println(WiFi.localIP());
+}
+
+// -------- Arduino Setup --------
 void setup() {
   Serial.begin(115200);
   delay(1000);
 
-  // -------- Create WiFi Access Point --------
-  Serial.println("Setting up Access Point...");
-  WiFi.mode(WIFI_AP_STA);
-  WiFi.softAP(ap_ssid, ap_password);
+  setupWiFi();
 
-  IPAddress IP = WiFi.softAPIP();
-  Serial.print("Access Point IP: ");
-  Serial.println(IP);
-
-  // -------- Connect to the internet via WiFi (optional) --------
-  // If you want the ESP32 to connect to another WiFi for internet:
-  // WiFi.begin("YourWiFiName", "YourWiFiPassword");
-  // while (WiFi.status() != WL_CONNECTED) {
-  //   delay(500);
-  //   Serial.print(".");
-  // }
-  // Serial.println("Connected to Internet");
-
-  // -------- Initialize NETPIE connection --------
+  // NETPIE event bindings
   microgear.on(MESSAGE, onMessage);
   microgear.on(CONNECTED, onConnected);
-  microgear.init(KEY, SECRET, ALIAS);
 
+  // Initialize MicroGear and connect to NETPIE
+  microgear.init(KEY, SECRET, ALIAS);
   Serial.println("Connecting to NETPIE...");
   microgear.connect(APPID);
 }
 
+// -------- Main Loop --------
 void loop() {
   if (microgear.connected()) {
     microgear.loop();
@@ -72,7 +76,7 @@ void loop() {
   static unsigned long lastSend = 0;
   if (millis() - lastSend > 5000) {
     lastSend = millis();
-    microgear.publish("/hello", "Hello from ESP32 Access Point!");
+    microgear.publish("/hello", "Hello from ESP32!");
     Serial.println("Message sent to NETPIE");
   }
 }
