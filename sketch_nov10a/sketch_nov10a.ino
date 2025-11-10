@@ -9,8 +9,8 @@
 #define ALIAS   "ESP32_NodeMCU"
 
 // -------- Wi-Fi credentials --------
-const char* ssid = "YourWiFiName";         // Replace with your WiFi name
-const char* password = "YourWiFiPassword"; // Replace with your WiFi password
+const char* ssid = "YourWiFiName";
+const char* password = "YourWiFiPassword";
 
 // -------- MicroGear setup --------
 WiFiClient client;
@@ -18,17 +18,19 @@ MicroGear microgear(client);
 
 // -------- Timer for periodic HTTP call --------
 unsigned long lastTime = 0;
-const unsigned long interval = 5 * 60 * 1000; // 5 minutes in milliseconds
+const unsigned long interval = 5 * 60 * 1000; // 5 minutes
+
+// -------- Global variable to store last temperature --------
+float lastTemperature = 0.0;
 
 // -------- Function to send JSON to HTTP API --------
-void sendJsonToAPI(String message) {
-  if ((WiFi.status() == WL_CONNECTED)) {
+void sendTemperatureToAPI(float temperature) {
+  if (WiFi.status() == WL_CONNECTED) {
     HTTPClient http;
-    http.begin("http://http.aaa/api"); // Replace with your API endpoint
+    http.begin("https://ir-on-sight.vercel.app/api/webhook");
     http.addHeader("Content-Type", "application/json");
 
-    String jsonBody = "{\"device\":\"ESP32_NodeMCU\",\"message\":\"" + message + "\"}";
-
+    String jsonBody = "{\"temperature\":" + String(temperature, 2) + "}";
     int httpResponseCode = http.POST(jsonBody);
 
     if (httpResponseCode > 0) {
@@ -50,39 +52,51 @@ void sendJsonToAPI(String message) {
 void onConnected(char *attribute, uint8_t* msg, unsigned int msglen) {
   Serial.println(">>> Connected to NETPIE");
   microgear.setAlias(ALIAS);
-  sendJsonToAPI("ESP32 connected to NETPIE"); // Notify on connect
 }
 
 void onMessage(char *topic, uint8_t* msg, unsigned int msglen) {
-  Serial.print("Incoming message on topic ");
-  Serial.print(topic);
-  Serial.print(": ");
   String message = "";
   for (int i = 0; i < msglen; i++) {
     message += (char)msg[i];
   }
-  Serial.println(message);
 
-  // Optionally send message to HTTP API
-  sendJsonToAPI("Message received: " + message);
+  // Parse message: assuming "temperature,status" format, e.g., "25.3,ON"
+  String tempStr = "";
+  String statusStr = "";
+  int commaIndex = message.indexOf(',');
+  if (commaIndex > 0) {
+    tempStr = message.substring(0, commaIndex);
+    statusStr = message.substring(commaIndex + 1);
+  } else {
+    tempStr = message; // default if no comma
+    statusStr = "UNKNOWN";
+  }
+
+  // Convert temperature to float and save globally
+  lastTemperature = tempStr.toFloat();
+
+  // Send message to UART (Serial)
+  Serial.print("temperature:");
+  Serial.print(lastTemperature, 2);
+  Serial.print(",status:");
+  Serial.println(statusStr);
+
+  // DO NOT call API here
 }
 
 void onPresent(char *alias) {
   Serial.print("Device online: ");
   Serial.println(alias);
-  sendJsonToAPI("Device online: " + String(alias));
 }
 
 void onAbsent(char *alias) {
   Serial.print("Device offline: ");
   Serial.println(alias);
-  sendJsonToAPI("Device offline: " + String(alias));
 }
 
 void onError(char *error) {
   Serial.print("NETPIE Error: ");
   Serial.println(error);
-  sendJsonToAPI("NETPIE Error: " + String(error));
 }
 
 // -------- WiFi setup --------
@@ -132,6 +146,8 @@ void loop() {
   // Periodic HTTP API call every 5 minutes
   if (millis() - lastTime > interval) {
     lastTime = millis();
-    sendJsonToAPI("Periodic update every 5 minutes");
+
+    // Send the last received temperature to API
+    sendTemperatureToAPI(lastTemperature);
   }
 }
